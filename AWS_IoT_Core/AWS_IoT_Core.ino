@@ -22,12 +22,15 @@
 #define WIFI_LED_PIN 2          // On-board LED (GPIO2)
 
 // -------------------- WiFi Credentials --------------------
-const char* WIFI_SSID = "Kamlesh's S20 FE";   // WiFi SSID
-const char* WIFI_PASS = "ghdo1401";           // WiFi Password
+const char* WIFI_SSID = "EngineiusTechnologies";   // WiFi SSID
+const char* WIFI_PASS = "Etech@2022";           // WiFi Password
 
 // -------------------- Global Variables --------------------
-float R1;                       // Random value #1
-float R2;                       // Random value #2
+uint8_t R1;                       // Random value #1
+uint8_t R2;                       // Random value #2
+
+// Build the data string dynamically
+char dataBuffer[50];
 
 WiFiClientSecure net;           // Secure WiFi client for TLS
 PubSubClient client(net);       // MQTT client (PubSubClient)
@@ -98,10 +101,13 @@ void connectAWS() {
 }
 
 // Publish JSON message to AWS IoT topic
-void publishMessage() {
+void publishMessage(uint8_t Robot_ID, uint8_t Data1, uint8_t Data2, uint8_t Data3) {
   StaticJsonDocument<200> doc;
-  doc["Random_1"] = R1;
-  doc["Random_2"] = R2;
+  doc["device_id"] = "68a98dd44be2cd33ae33f8ad";
+  doc["robot_id"] = Robot_ID;
+
+  sprintf(dataBuffer, "START/%d/%d/%d", Data1, Data2, Data3);
+  doc["data"] =  dataBuffer;
 
   char jsonBuffer[256];
   serializeJson(doc, jsonBuffer);
@@ -164,9 +170,9 @@ void loop() {
     // Generate and publish random test values
     R1 = random(1, 100);
     R2 = random(1, 100);
-    Serial.printf("📊 Random_1: %.2f, Random_2: %.2f\n", R1, R2);
+    Serial.printf("📊 Random_1: %d, Random_2: %d\n", R1, R2);
 
-    publishMessage();
+    publishMessage(11, R1, R2, R2);
     delay(2000); // Publish frequency
   }
   else {
