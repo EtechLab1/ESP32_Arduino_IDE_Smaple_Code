@@ -37,7 +37,9 @@ PubSubClient client(net);       // MQTT client (PubSubClient)
 
 // -------------------- Connection Retry Timers --------------------
 unsigned long lastAWSAttempt = 0;
+unsigned long lastAWSPublish = 0;
 const unsigned long AWS_RETRY_INTERVAL = 5000; // retry AWS every 5s
+const unsigned long AWS_PUBLISH_INTERVAL = 2000; // publish AWS every 2s
 
 // -------------------- Forward Declarations --------------------
 void connectAWS();
@@ -93,7 +95,8 @@ void connectAWS() {
     if (client.connect(THINGNAME)) {
       Serial.println("✅ Connected!");
       client.subscribe(AWS_IOT_SUBSCRIBE_TOPIC);
-    } else {
+    } 
+    else {
       Serial.print("⚠️ Failed, state=");
       Serial.println(client.state());
     }
@@ -123,13 +126,24 @@ void messageHandler(char* topic, byte* payload, unsigned int length) {
 
   StaticJsonDocument<200> doc;
   DeserializationError err = deserializeJson(doc, payload, length);
+  for(int i =0; i<length; i++){
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
 
   if (!err) {
-    if (doc.containsKey("message")) {
-      const char* message = doc["message"];
+    if (doc.containsKey("device_id")) {
+      const char* device_id = doc["device_id"];
+      uint8_t robot_id = doc["robot_id"];
+      const char* data = doc["data"];
       Serial.print("➡️ Message content: ");
-      Serial.println(message);
-    } else {
+      Serial.print(device_id);
+      Serial.print(", ");
+      Serial.print(robot_id);
+      Serial.print(", ");
+      Serial.println(data);
+    } 
+    else {
       Serial.println("⚠️ No 'message' field in JSON!");
     }
   } else {
@@ -166,14 +180,16 @@ void loop() {
   // Keep MQTT alive
   if (client.connected()) {
     client.loop();
-
-    // Generate and publish random test values
-    R1 = random(1, 100);
-    R2 = random(1, 100);
-    Serial.printf("📊 Random_1: %d, Random_2: %d\n", R1, R2);
-
-    publishMessage(11, R1, R2, R2);
-    delay(2000); // Publish frequency
+    if (millis() - lastAWSPublish >= AWS_PUBLISH_INTERVAL) {
+      lastAWSPublish = millis(); // update timer
+  
+      // Generate and publish random test values
+      R1 = random(1, 100);
+      R2 = random(1, 100);
+      Serial.printf("📊 Random_1: %d, Random_2: %d\n", R1, R2);
+  
+      publishMessage(11, R1, R2, R2);
+    }
   }
   else {
     // Maintain AWS IoT connection (non-blocking)
