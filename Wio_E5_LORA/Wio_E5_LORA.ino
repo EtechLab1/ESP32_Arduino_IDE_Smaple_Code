@@ -246,7 +246,7 @@ void TestParse(void) {
 // Send status command to a specific node
 void sendNodeStatusCommand(uint8_t NodeId) {
   char payload[32];
-  sprintf(payload, "AT+TEST=TXLRPKT,5A%x%x%x", NodeId, 0x11, 0x12);
+  sprintf(payload, "AT+TEST=TXLRPKT,5A%02X%02X%02X", NodeId, 0x11, 0x12);
 
   sendCommand(String(payload));
   Serial.print("Sent status to Robot ");
