@@ -160,7 +160,7 @@ void readUARTData() {
     if (!uartBuffer.isEmpty()) {
       Serial.println("Received: " + uartBuffer);
 
-      if (uartBuffer.indexOf("+QGPSLOC:") > 0) {
+      if (uartBuffer.indexOf("+QGPSLOC:") >= 0) {
         // Parse and display GPS information
         exampleUsage(uartBuffer);
       } else {
