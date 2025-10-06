@@ -17,6 +17,8 @@
  */
 
 #include <HardwareSerial.h>
+#include <ArduinoJson.h>
+#include "secrate.h"
 
 // ----------------------------------------------------------------------
 // Pin Mapping & Configuration
@@ -128,13 +130,58 @@ void configureGPRS() {
  * @brief Opens an MQTT connection to HiveMQ and connects with client ID.
  */
 void connectToMQTTBroker() {
-  // Open MQTT network connection: client 0, HiveMQ broker, port 8884
-  sendATCommand("AT+QMTOPEN=0,\"broker.hivemq.com\",8884");
+  sendATCommand("AT+QFDEL=\"*\"");
   delay(5000);
 
-  // Connect to MQTT broker: client 0, client ID = EC200Ugsm2
-  sendATCommand("AT+QMTCONN=0,\"EC200Ugsm2\"");
+  sendATCommand("AT+QMTCFG=\"SSL\",0,1,2");
   delay(5000);
+
+  uint32_t certLength = strlen(AWS_CERT_CA);
+  Serial.print("Length of AWS_CERT_CA: ");
+  Serial.println(certLength);
+  sendATCommand("AT+QFUPL=\"UFS:cacert.pem\",1188,100");
+  sendATCommand(AWS_CERT_CA);
+  delay(5000);
+  
+  sendATCommand("AT+QFUPL=\"UFS:client.pem\",1220,100");
+  sendATCommand(AWS_CERT_CRT);
+  delay(5000);
+  sendATCommand("AT+QFUPL=\"UFS:user_key.pem\",1679,100");
+  sendATCommand(AWS_CERT_PRIVATE);
+  delay(5000);
+
+  sendATCommand("AT+QSSLCFG=\"cacert\",2,\"UFS:cacert.pem\"");
+  delay(5000);
+
+  sendATCommand("AT+QSSLCFG=\"clientcert\",2,\"UFS:client.pem\"");
+  delay(5000);
+
+  sendATCommand("AT+QSSLCFG=\"clientkey\",2,\"UFS:user_key.pem\"");
+  delay(5000);
+
+
+
+  sendATCommand("AT+QSSLCFG=\"seclevel\",2,2");
+  delay(1000);
+  sendATCommand("AT+QSSLCFG=\"sslversion\",2,3");
+  delay(1000);
+  sendATCommand("AT+QSSLCFG=\"ciphersuite\",2,0xFFFF");
+  delay(1000);
+  sendATCommand("AT+QSSLCFG=\"ignorelocaltime\",1");
+  delay(1000);
+
+
+  //a2uf6iaxr3hfog-ats.iot.us-east-1.amazonaws.com
+  sendATCommand("AT+QMTOPEN=0,\"a2uf6iaxr3hfog-ats.iot.us-east-1.amazonaws.com\",8883"); 
+  delay(5000);
+  
+  sendATCommand("AT+QMTCONN=0,\"gsm_mqtt\""); 
+  delay(5000);
+
+//  sendCommand("AT+QMTDISC=0"); 
+//  delay(1000);
+//  sendCommand("AT+QMTCLOSE=0"); 
+//  delay(1000);
 }
 
 /**
@@ -150,13 +197,25 @@ void subscribeToTopic() {
  * @brief Publishes a message to a topic.
  */
 void publishMessage() {
-  // Publish setup: client 0, msg ID=1, QoS=1, retain=0, topic="EC200_PUB", payload length=4
-  sendATCommand("AT+QMTPUBEX=0,1,1,0,\"EC200_PUB\",4");
-  delay(200);
+  // Create JSON object
+  StaticJsonDocument<200> doc;
+  doc["Latitude"] = "21.2345";
+  doc["Longitude"] = "72.4569";
 
-  // Publish payload: "1234" as the message body
-  sendATCommand("1234");
-  delay(200);
+  // Serialize JSON to buffer
+  char jsonBuffer[256];
+  size_t jsonLength = serializeJson(doc, jsonBuffer);
+
+  // Use the actual length of the JSON string as the payload length
+  String atCommand = "AT+QMTPUBEX=0,1,1,0,\"BG950_PUB\"," + String(jsonLength);
+
+  // Send AT command to publish
+  sendATCommand(atCommand.c_str());
+  delay(400);
+
+  // Send the JSON payload
+  sendATCommand(jsonBuffer);
+  delay(400);
 }
 
 /**
